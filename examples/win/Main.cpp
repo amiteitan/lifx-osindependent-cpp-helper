@@ -26,6 +26,20 @@ public:
 	{
 		memset(id, 0, 8);
 	}
+
+	bool equals(char* other_id)
+	{
+		bool retVal = true;
+		for (int i = 0; i < 7; i++)
+		{
+			if (id[i] != other_id[i])
+			{
+				retVal = false;
+				break;
+			}
+		}
+		return retVal;
+	}
 	
 	~CLightInfo()
 	{
@@ -33,6 +47,10 @@ public:
 	}
 };
 
+bool discovery()
+{
+	return false;
+}
 
 
 int run_2()
@@ -125,9 +143,10 @@ int run_2()
 		len2 = build_get_power_message(sendMSG, 100);
 		sendto(sock, sendMSG, len2, 0, (sockaddr*)&Recv_addr, sizeof(Recv_addr));
 		*/
-		//D073D52192BB00
-		if (last_ip_byte == 160)
+		char wanted_id[] = { 0xD0, 0x73, 0xD5, 0x21, 0x92, 0xBB, 0x00 };
+		if (ip.second->equals(wanted_id))
 		{
+			cout << "Found the light!!" << endl;;
 			light_parameters light_params;
 			/*
 			light_params.brightness = 1;
@@ -142,7 +161,7 @@ int run_2()
 			light_params.power = false;
 			light_params.kelvin = 3500;
 			//len2 = build_set_color_message(sendMSG, BUFLEN, light_params);
-			len2 = build_set_power_message(sendMSG, BUFLEN, true);
+			len2 = build_set_power_message(sendMSG, BUFLEN, false);
 			sendto(sock, sendMSG, len2, 0, (sockaddr*)&Recv_addr, sizeof(Recv_addr));
 			Sleep(1000);
 		}
