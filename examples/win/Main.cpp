@@ -65,7 +65,7 @@ int run_2()
 	Recv_addr.sin_port = htons(MYPORT);
 
 	Recv_addr.sin_addr.s_addr = inet_addr("10.175.245.255");  // switch doesnt work
-
+	 
 	// setup a timeval structure for use in select later in the program
 	int timeout = 1000;
 	timeval time_to_wait;
