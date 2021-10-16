@@ -16,6 +16,16 @@ using namespace std;
 #define MYPORT 56700    // the port users will be connecting to
 using namespace std;
 
+class CommWrapper
+{
+	public:
+		bool init()
+		{
+
+		}
+
+
+};
 
 class CLightInfo
 {
@@ -49,6 +59,7 @@ public:
 
 bool discovery()
 {
+	
 	return false;
 }
 
@@ -95,9 +106,10 @@ int run_2()
 	// add the listening socket to read_set
 	FD_SET(sock, &read_set);
 	///
+	
+	
 	sendto(sock, sendMSG,len2, 0, (sockaddr*)&Recv_addr, sizeof(Recv_addr));
 	Sleep(1000);
-
 	bool try_receive = true;
 	do
 	{
@@ -127,8 +139,6 @@ int run_2()
 
 			}
 		}
-		
-		
 	} while (try_receive);
 	printf("=======================================");
 	for (auto& ip : lights_container) {
