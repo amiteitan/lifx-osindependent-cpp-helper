@@ -33,7 +33,7 @@ private:
 			if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast,	sizeof(broadcast)) < 0) 
 			{
 				error_message = "Error in setting Broadcast option";
-                std::cout << error_message;
+                std::cout << error_message << std::endl;
                 
 				closesocket(sock);
                 ret_val = false;
@@ -62,12 +62,27 @@ private:
 
     virtual int Receive(CommUDPMessage& message)
 	{
-        struct sockaddr_in Sender_addr;
-		char str[INET_ADDRSTRLEN];
-		int len = sizeof(struct sockaddr_in);
-        int received_bytes = recvfrom(sock, message.message, message.length, 0, (sockaddr*)&Sender_addr, &len);
-		inet_ntop(AF_INET, &(Sender_addr.sin_addr), str, INET_ADDRSTRLEN);
-        message.ip_address = str;
+		FD_ZERO(&read_set);
+		// add the listening socket to read_set
+		FD_SET(sock, &read_set);
+		int status = select(0, &read_set, 0, 0, &time_to_wait);
+		int received_bytes = 0;
+		if (status != 0)
+		{
+			struct sockaddr_in Sender_addr;
+			char str[INET_ADDRSTRLEN];
+			int len = sizeof(struct sockaddr_in);
+			received_bytes = recvfrom(sock, message.message, message.length, 0, (sockaddr*)&Sender_addr, &len);
+			inet_ntop(AF_INET, &(Sender_addr.sin_addr), str, INET_ADDRSTRLEN);
+			message.ip_address = str;
+			message.length = received_bytes;
+		}
+		else
+		{
+			std::cout << "no waiting messages" << std::endl;
+		}
+
+		
         return received_bytes;
 	}
 };

@@ -145,6 +145,8 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\..\code\comm_wrapper.h" />
     <ClInclude Include="..\..\..\..\code\lifxlan.h" />
+    <ClInclude Include="..\..\..\..\code\lifx_light.h" />
+    <ClInclude Include="..\..\..\..\code\‏‏comm_message.h" />
     <ClInclude Include="..\..\..\..\code\‏‏comm_wrapper_win_udp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

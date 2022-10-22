@@ -5,6 +5,6 @@ class CommWrapper
 {
 public:
   virtual int Send(CommUDPMessage &message) = 0;
- virtual int Receive(CommUDPMessage &message) = 0;
+  virtual int Receive(CommUDPMessage &message) = 0;
 };
 #endif //_COMM_WRAPPER_H_

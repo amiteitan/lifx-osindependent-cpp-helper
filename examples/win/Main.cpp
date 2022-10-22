@@ -12,27 +12,23 @@ using namespace std;
 #include <map>
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 
+#include "þþcomm_wrapper_win_udp.h"
+#include "þþcomm_message.h"
+
+#include "lifx_light.h"
+
 #define BUFLEN 512	//Max length of buffer
 #define MYPORT 56700    // the port users will be connecting to
 using namespace std;
 
-class CommWrapper
-{
-	public:
-		bool init()
-		{
 
-		}
-
-
-};
-
-class CLightInfo
+class CLightInfo2
 {
 public:
 	char id[9];
 	int last_ip_byte;
-	CLightInfo()
+	string ip_address;
+	CLightInfo2()
 	{
 		memset(id, 0, 8);
 	}
@@ -51,7 +47,7 @@ public:
 		return retVal;
 	}
 	
-	~CLightInfo()
+	~CLightInfo2()
 	{
 		memset(id, 0, 8);
 	}
@@ -69,6 +65,7 @@ int run_2()
 	WSADATA wsaData;
 	
 	std::map<uint32_t, CLightInfo*> lights_container;
+	light_info decoded_light_info;
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 	SOCKET sock;
@@ -93,7 +90,7 @@ int run_2()
 	Recv_addr.sin_family = AF_INET;
 	Recv_addr.sin_port = htons(MYPORT);
 
-	Recv_addr.sin_addr.s_addr = inet_addr("10.175.245.255");  // switch doesnt work
+	Recv_addr.sin_addr.s_addr = inet_addr("192.168.0.255");  // switch doesnt work
 	 
 	// setup a timeval structure for use in select later in the program
 	int timeout = 1000;
@@ -132,15 +129,15 @@ int run_2()
 				CLightInfo* new_light_info = new CLightInfo();
 				printf("^^^^^^^^^^^^^^^^^^^^^^\n");
 				printf("message from ip: %d\n", ip_last_byte);
-				decode_lifx_message(recvbuff, recvbufflen);
+				decode_lifx_message(recvbuff, recvbufflen, new_light_info->decoded_light_info);
 				get_lifx_device_id(recvbuff, recvbufflen, new_light_info->id, 8);
-				new_light_info->last_ip_byte = ip_last_byte;
+				new_light_info->ip_address = ip_address;
 				lights_container[ip_address] = new_light_info;
 
 			}
 		}
 	} while (try_receive);
-	printf("=======================================");
+	  ("=======================================");
 	for (auto& ip : lights_container) {
 		
 		Recv_addr.sin_addr.S_un.S_addr = ip.first;
@@ -166,8 +163,7 @@ int run_2()
 			light_params.kelvin = 3500;
 			*/
 			light_params.brightness = 1;
-			light_params.hue = 300;
-			light_params.saturation = 0;
+ 			light_params.saturation = 0;
 			light_params.power = false;
 			light_params.kelvin = 3500;
 			//len2 = build_set_color_message(sendMSG, BUFLEN, light_params);
@@ -175,8 +171,10 @@ int run_2()
 			sendto(sock, sendMSG, len2, 0, (sockaddr*)&Recv_addr, sizeof(Recv_addr));
 			Sleep(1000);
 		}
+		/*
 		len2 = build_get_version_message(sendMSG, 100);
 		sendto(sock, sendMSG, len2, 0, (sockaddr*)&Recv_addr, sizeof(Recv_addr));
+		*/
 		len2 = build_get_color_message(sendMSG, 100);
 		sendto(sock, sendMSG, len2, 0, (sockaddr*)&Recv_addr, sizeof(Recv_addr));
 		Sleep(1000);
@@ -208,7 +206,7 @@ int run_2()
 			else
 			{
 				recvfrom(sock, recvbuff, recvbufflen, 0, (sockaddr*)&Sender_addr, &len);
-				decode_lifx_message(recvbuff, BUFLEN);
+				decode_lifx_message(recvbuff, BUFLEN, &decoded_light_info);
 			}
 		} while (try_receive);
 
@@ -230,8 +228,83 @@ int run_2()
 	lights_container.clear();
 }
 
+void run()
+{ 
+	light_info decoded_light_info;
+	std::map<string, CLightInfo*> lights_container;
+	CommWrapper* comm_channel = new CommWrapperWinUDP(true);
+	CommUDPMessage outgoing_message;
+	CommUDPMessage incomming_message;
+	char sendMSG[BUFLEN];
+	incomming_message.message = sendMSG;
+	incomming_message.length = BUFLEN;
+	//Send discovery message
+	string network_broadcast_address = "192.168.0.255";
+	outgoing_message.ip_address = network_broadcast_address;
+	outgoing_message.port = MYPORT;
+	outgoing_message.message = sendMSG;
+	outgoing_message.length = build_discovery_message(sendMSG, BUFLEN);
+	comm_channel->Send(outgoing_message);
+	Sleep(1000);
+	while (comm_channel->Receive(incomming_message) > 0)
+	{	
+			auto val = lights_container.find(incomming_message.ip_address);
+			if (val == lights_container.end())
+			{
+				CLightInfo* new_light_info = new CLightInfo();
+				std::cout << "received message from: " << incomming_message.ip_address << std::endl;
+				decode_lifx_message(incomming_message.message, incomming_message.length ,&decoded_light_info);
+				get_lifx_device_id(incomming_message.message, incomming_message.length, new_light_info->id, 8);
+				new_light_info->ip_address = incomming_message.ip_address;
+				lights_container[incomming_message.ip_address] = new_light_info;
+			}
+			incomming_message.length = BUFLEN; //Set the maxLen for the next cycle
+	}
+	
+	
+	for (auto& ip : lights_container)
+	{
+
+	}
+	
+	//Release memory below this comment
+	//Free allocated memory
+	for (auto& ip : lights_container)
+	{
+
+		delete ip.second;
+	}
+	lights_container.clear();
+
+	delete comm_channel;
+}
+
+void run_optimal()
+{
+	CommWrapper* comm_channel = new CommWrapperWinUDP(true);
+	char wanted_id[] = { 0xD0, 0x73, 0xD5, 0x21, 0x92, 0xBB, 0x00 };
+	LifxLightDeviceContainer my_device(comm_channel);
+	string network_broadcast_address = "192.168.0.255";
+	if (my_device.init(network_broadcast_address))
+	{
+		auto light = my_device.find_light(wanted_id);
+		my_device.turn_on(*light);
+		for (int i = 0; i < 10; i++)
+		{
+			my_device.turn_off(*light);
+			Sleep(6000);
+			my_device.turn_on(*light);
+			Sleep(6000);
+		}
+	}
+	delete comm_channel;
+	
+}
+
 int main()
 {
-	run_2();
-	//run_1();
- }
+	run_optimal();
+	//run();
+	//run_2();
+	
+  }

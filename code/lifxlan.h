@@ -90,6 +90,15 @@ typedef struct {
     bool power;
 }light_parameters;
 
+typedef struct
+{
+    uint8_t id[8];
+    uint8_t label[32];
+    uint32_t vendor;
+    uint32_t product;
+    light_parameters params;
+}light_info;
+
 int build_tx_message_base(char* raw_message, uint16_t size, uint16_t type = 2)
 {
     lx_protocol_header_t* message = (lx_protocol_header_t*)raw_message;
@@ -162,15 +171,21 @@ int build_set_power_message(char* raw_message, uint16_t size, bool power)
 
 
 
-int decode_lifx_header(char* raw_message, uint16_t size)
+int decode_lifx_header(char* raw_message, uint16_t size, light_info* decoded_light_info)
 {
     lx_protocol_header_t* message = (lx_protocol_header_t*)raw_message;
+    memset(decoded_light_info->id, 0, 8);
+    for (int i = 0; i < 8; i++)
+    {
+        decoded_light_info->id[i] = message->target[i];
+    }
+
 #ifdef HAVE_PRINTF
     printf("-------------------\n");
     printf("Target: ");
     for (int i = 0; i < 8; i++)
     {
-        printf("%X", message->target[i]);
+        printf("%X", decoded_light_info->id[i]);
     }
     printf("\n");
     printf("Message type = %d\n", message->type);
@@ -195,16 +210,16 @@ bool get_lifx_device_id(char* raw_message, uint16_t size, char* id_buf, uint16_t
     return ret_value;
 }
 
-void decode_lifx_statePower(char* raw_message, uint16_t size)
+void decode_lifx_statePower(char* raw_message, uint16_t size, light_info* decoded_light_info)
 {
     rx_statePower_Packet22* message = (rx_statePower_Packet22*)raw_message;
 #ifdef HAVE_PRINTF
     printf("power = %x\n", message->power);
 #endif
-}
+} 
 
 
-void decode_lifx_stateService(char* raw_message, uint16_t size)
+void decode_lifx_stateService(char* raw_message, uint16_t size, light_info* decoded_light_info)
 {
     rx_stateService_Packet003* message = (rx_stateService_Packet003*)raw_message;
 #ifdef HAVE_PRINTF
@@ -213,34 +228,40 @@ void decode_lifx_stateService(char* raw_message, uint16_t size)
 #endif
 }
 
-void decode_lifx_lightState(char* raw_message, uint16_t size)
+void decode_lifx_lightState(char* raw_message, uint16_t size, light_info* decoded_light_info)
 {
     rx_lightState_Packet107* message = (rx_lightState_Packet107*)raw_message;
+    for (int i = 0; i < 32; i++)
+    {
+        decoded_light_info->label[i] = message->label[i];
+    }
+    light_parameters* light_params = &(decoded_light_info->params);
+    light_params->hue = round((double(message->hue) * 360 / 0x10000) * 100) / 100; //Round to 2 decimal places
+    light_params->brightness = round((double(message->brightness) / 0xFFFF) * 10000) / 10000; //Round to 4 decimal places
+    light_params->saturation = round((double(message->saturation) / 0xFFFF) * 10000) / 10000; //Round to 4 decimal places
+    light_params->power = message->power != 0;
+    light_params->kelvin = message->kelvin;
+
 #ifdef HAVE_PRINTF
     for (int i = 0; i < 32; i++)
     {
         printf("%c", message->label[i]);
     }
-#endif
-    light_parameters light_params;
-    light_params.hue = round((double(message->hue) * 360 / 0x10000)*100)/100; //Round to 2 decimal places
-    light_params.brightness = round((double(message->brightness) / 0xFFFF) * 10000) / 10000; //Round to 4 decimal places
-    light_params.saturation = round((double(message->saturation) / 0xFFFF) * 10000) / 10000; //Round to 4 decimal places
-    light_params.power = message->power != 0;
-    light_params.kelvin = message->kelvin;
-#ifdef HAVE_PRINTF
     printf("\n");
-    printf("hue = %d\n", light_params.hue);
-    printf("saturation = %.4f\n", light_params.saturation);
-    printf("brightness = %.4f\n", light_params.brightness);
-    printf("kelvin = %d\n", light_params.kelvin);
-    printf("power = %s\n", light_params.power ? "TRUE" : "FALSE");
+    printf("hue = %d\n", light_params->hue);
+    printf("saturation = %.4f\n", light_params->saturation);
+    printf("brightness = %.4f\n", light_params->brightness);
+    printf("kelvin = %d\n", light_params->kelvin);
+    printf("power = %s\n", light_params->power ? "TRUE" : "FALSE");
 #endif
 }
 
-void decode_lifx_stateVersion(char* raw_message, uint16_t size)
+void decode_lifx_stateVersion(char* raw_message, uint16_t size, light_info* decoded_light_info)
 {
     rx_stateVersion_Packet33* message = (rx_stateVersion_Packet33*)raw_message;
+    decoded_light_info->vendor = message->vendor;
+    decoded_light_info->product = message->product;
+
 #ifdef HAVE_PRINTF
     printf("vendor: %d\n", message->vendor);
     printf("id: %d ", message->product);
@@ -264,10 +285,10 @@ void decode_lifx_stateVersion(char* raw_message, uint16_t size)
 
 }
 
-void  decode_lifx_message(char* raw_message, uint16_t size)
+void  decode_lifx_message(char* raw_message, uint16_t size, light_info* decoded_light_info)
 {
-  int type = decode_lifx_header(raw_message, size);
-  void (*decode_func)(char*, uint16_t) = nullptr;
+  int type = decode_lifx_header(raw_message, size, decoded_light_info);
+  void (*decode_func)(char*, uint16_t, light_info*) = nullptr;
   //StateService - packet3
   switch (type)
   {
@@ -286,13 +307,12 @@ void  decode_lifx_message(char* raw_message, uint16_t size)
 
   if (decode_func != nullptr)
   {
-      decode_func(raw_message, size);
+      decode_func(raw_message, size, decoded_light_info);
   }
   
    //light
    //Light State packet_107
 }
-#pragma pack(show)
 #pragma pack(pop)
 
 #endif // _LIFX_LAN_HELPER_H_
