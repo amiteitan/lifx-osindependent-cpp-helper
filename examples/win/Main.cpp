@@ -287,13 +287,17 @@ void run_optimal()
 	string network_broadcast_address = "192.168.0.255";
 	if (my_device.init(network_broadcast_address))
 	{
-		auto light = my_device.find_light(wanted_id);
-		my_device.turn_on(*light);
+		auto light_mika_room = my_device.find_light(wanted_id);
+		auto light_mika_desk = my_device.find_light("MikaDesk");
+
+		my_device.turn_on(*light_mika_room);
 		for (int i = 0; i < 10; i++)
 		{
-			my_device.turn_off(*light);
+			my_device.turn_off(*light_mika_room);
+			my_device.turn_off(*light_mika_desk);
 			Sleep(6000);
-			my_device.turn_on(*light);
+			my_device.turn_on(*light_mika_room);
+			my_device.turn_on(*light_mika_desk);
 			Sleep(6000);
 		}
 	}

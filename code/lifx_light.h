@@ -180,29 +180,25 @@ public:
 	CLightInfo* find_light(string label)
 	{
 		CLightInfo* found_the_light = nullptr;
-		/*
-		for (auto& light : lights_container)
+		
+ 		for (auto& light : lights_container)
 		{
-			if (label != light.second->decoded_light_info->label)
-				{
-					retVal = false;
-					break;
-				}
-			}
-			if (retVal)
+			if (light.second->decoded_light_info->label.compare(0, label.size(), label) != 0)
 			{
-				std::cout << "found_light" << std::endl;
-				found_the_light = light.second;
+				continue;
 			}
+			std::cout << "found_light" << std::endl;
+			found_the_light = light.second;
+			break;
 		}
-		*/
+		
 		return found_the_light;
 	}
 
 	bool turn_on(CLightInfo& light)
 	{
 		std::cout << "turn_on" << std::endl;
-		return set_power_state(light, false);
+		return set_power_state(light, true);
 	}
 
 	bool turn_off(CLightInfo& light)

@@ -2,7 +2,8 @@
 #define _LIFX_LAN_HELPER_H_
 #include <stdint.h>
 #include <stdio.h>
-#include <cstring>
+#include <iostream>
+#include <sstream>
 #include <stdlib.h>
 #include <math.h>
 using namespace std;
@@ -93,7 +94,8 @@ typedef struct {
 typedef struct
 {
     uint8_t id[8];
-    uint8_t label[32];
+    char raw_label[32];
+    std::string label;
     uint32_t vendor;
     uint32_t product;
     light_parameters params;
@@ -231,10 +233,13 @@ void decode_lifx_stateService(char* raw_message, uint16_t size, light_info* deco
 void decode_lifx_lightState(char* raw_message, uint16_t size, light_info* decoded_light_info)
 {
     rx_lightState_Packet107* message = (rx_lightState_Packet107*)raw_message;
+    std::ostringstream convert;
     for (int i = 0; i < 32; i++)
     {
-        decoded_light_info->label[i] = message->label[i];
+        decoded_light_info->raw_label[i] = message->label[i];
+        convert << decoded_light_info->raw_label[i];
     }
+    decoded_light_info->label = convert.str();
     light_parameters* light_params = &(decoded_light_info->params);
     light_params->hue = round((double(message->hue) * 360 / 0x10000) * 100) / 100; //Round to 2 decimal places
     light_params->brightness = round((double(message->brightness) / 0xFFFF) * 10000) / 10000; //Round to 4 decimal places
